@@ -1,0 +1,142 @@
+include "linux.porth"
+include "core.porth"
+
+const PROT_EXEC 4 end //should be defined in std/linux, but isn't (yet)
+
+const M_PROT PROT_READ PROT_WRITE PROT_EXEC + + end //should be the same as or
+const M_FLAGS MAP_PRIVATE MAP_ANONYMOUS + end //check above
+const M_FD -1 end
+
+const MAP_FAILED -1 cast(ptr) end //should also be defined in std/linux, but alas, isn't
+
+inline proc munmap int int -- int in SYS_munmap syscall2 end
+
+proc malloc int -- ptr bool in 
+    //takes the size of the allocation in bytes
+    let length in
+        length 0 = if
+            MAP_FAILED false
+        else
+            0 //offset
+            M_FD //file desc
+            M_FLAGS //flags
+            M_PROT //prot
+            length //length
+            NULL //addr
+            mmap
+            cast(ptr) //TODO: verify that this cast and the comparison with MAP_FAILED actually work
+            //Check return value
+            //Since we're compiling for x86_64, this should be 64 bit -1, or just porth -1
+            //TODO: verify the above statement
+            dup MAP_FAILED ptr!= //Gives true if the ptr is valid (not MAP_FAILED) and false if it did
+        end
+    end
+end
+
+proc free ptr int -- bool in
+    swap cast(int) swap munmap -1 !=
+end 
+
+proc calloc int int -- ptr bool in 
+    //takes the size of the structure in bytes and the desired number of structures
+    *
+    let length in
+        length 0 = if
+            MAP_FAILED false
+        else
+            0 //offset
+            M_FD //file desc
+            M_FLAGS //flags
+            M_PROT //prot
+            length //length
+            NULL //addr
+            mmap
+            cast(ptr)
+            //Check return value
+            //Since we're compiling for x86_64, this should be 64 bit -1, or just porth -1
+            //TODO: verify the above statement
+            dup MAP_FAILED ptr!= //Gives true if the ptr is valid (not MAP_FAILED) and false if it did
+            dup if //if we succesfully allocated, we have to verify that all the bytes are zero-initialized
+                drop 
+                let mptr in 
+                    length
+                    while dup 7 > do
+                        0 mptr !64 
+                    end
+                    while dup 1 > do
+                        0 mptr !16
+                    end
+                    0 > if
+                        0 mptr !8
+                    end
+                    mptr
+                end
+                true //repush bool
+            end
+        end
+    end
+end
+
+proc realloc ptr int int -- ptr bool in //change allocation at int1 to size int2
+    let maddr olen nlen in
+        maddr NULL ptr= if //if addr is NULL, allocate a new block
+            nlen malloc 
+        else nlen 0 = if* //if size is zero, then we should deallocate the block
+            NULL maddr olen free 
+        else
+            olen nlen > if 
+                maddr olen ptr+ olen nlen - free drop //free the old space
+            end
+            0 //offset
+            M_FD //file desc
+            M_FLAGS //flags
+            M_PROT //prot
+            nlen //length
+            maddr //addr
+            mmap
+            cast(ptr)
+            //Check return value
+            //Since we're compiling for x86_64, this should be 64 bit -1, or just porth -1
+            //TODO: verify the above statement
+            dup MAP_FAILED ptr!= //Gives true if the ptr is valid (not MAP_FAILED) and false if it did
+            dup if //check if successful
+                drop
+                dup maddr ptr!= if //if we had to change locations, we have to copy the old data over. 
+                    //TODO: verify that the location only changes if we grew the allocation, not shrunk it. 
+                    let naddr in
+                        0
+                        while dup olen swap - 7 > do 
+                                dup dup
+                                naddr swap ptr+
+                                swap
+                                maddr swap ptr+ 
+                                @64
+                                swap !64
+                        end
+                        while dup olen swap - 1 > do 
+                                dup dup
+                                naddr swap ptr+
+                                swap
+                                maddr swap ptr+ 
+                                @16
+                                swap !16
+                        end
+                        olen < if //one more byte
+                                olen 1 - dup
+                                naddr swap ptr+
+                                swap
+                                maddr swap ptr+ 
+                                @8
+                                swap !8
+                        end
+                        naddr
+                    end
+                end
+                true
+            end
+        end
+    end
+end
+
+
+
