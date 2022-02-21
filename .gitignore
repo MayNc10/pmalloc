@@ -1,3 +1,5 @@
 porth
 std
 *.asm
+temp.porth
+temp
