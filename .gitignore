@@ -3,3 +3,4 @@ std
 *.asm
 temp.porth
 temp
+*.code-workspace
