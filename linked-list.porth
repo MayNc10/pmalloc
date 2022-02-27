@@ -1,0 +1,37 @@
+include "pmalloc.porth"
+
+//structure:
+//8b ptr: pointer to the next item
+//8b size: size of the item 
+//item
+
+//check porth docs: does @/! replace ptr
+llnode_getNext ptr -- ptr ptr in 
+	dup @64
+end
+
+llnode_reduceToNext ptr -- ptr in 
+	@64
+end 
+
+llnode_setNext ptr ptr -- ptr in 
+	over swap !64
+end 
+
+llnode_getSize ptr -- ptr int in
+	dup 8 + @64 
+end 
+
+llnode_reduceToSize ptr -- int in
+	8 + @64 
+end 
+
+llnode_setSize ptr int -- ptr in
+	over 8 + swap !64 
+end
+
+
+ll_init_withsize int -- ptr bool in 
+	1 - 
+	
+end 

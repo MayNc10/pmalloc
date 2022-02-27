@@ -1,0 +1,168 @@
+include "pmalloc.porth"
+include "core.porth"
+
+//TODO: should there be a seperate part of this layout for the tree root? Personally I don't think so. - May
+//TODO: should children be lchild and rchild or leftchild and rightchild? - May
+//stucture of a btree node:
+//8b: ptr to parent
+//8b: ptr to left child
+//8b ptr to right child
+//8b: value
+
+proc bt_getParent ptr -- ptr ptr in 
+	dup @64 cast(ptr)
+end
+proc bt_reduceToParent ptr -- ptr in 
+	@64 cast(ptr)
+end
+proc bt_setParent ptr ptr -- ptr in 
+	over swap cast(int) @64 cast(ptr)
+end
+
+proc bt_getLeftChild ptr -- ptr ptr in 
+	dup 8 + @64 cast(ptr)
+end
+
+
+proc bt_reduceToLeftChild ptr -- ptr in 
+	8 + @64 cast(ptr)
+end
+
+proc bt_setLeftChild ptr ptr -- ptr in 
+	over 8 + swap cast(int) @64
+end
+
+proc bt_getRightChild ptr -- ptr ptr in 
+	dup 16 + @64 cast(ptr)
+end
+
+
+proc bt_reduceToRightChild ptr -- ptr in 
+	16 + @64 cast(ptr)
+end
+
+proc bt_setRightChild ptr ptr -- ptr in 
+	over 16 + swap cast(int) @64
+end
+
+proc bt_getValue ptr -- ptr int in 
+	dup 24 + @64
+end
+
+
+proc bt_reduceToValue ptr -- int in 
+	24 + @64
+end
+
+//There is no bt_setValue because of the way binary sorted trees work
+
+proc bt_init int -- ptr bool in 
+	32 malloc //4 64-bit nums = 32 bytes
+	if //successful
+		//because this is root, there's no parent, lchild, or rchild, so we set them all to zero
+		dup 0 @64
+		8 + dup 0 @64
+		8 + dup 0 @64
+		8 + swap @64
+		true
+	else //failure
+		NULL false 
+	end 
+end
+
+proc bt_createLChild ptr int -- ptr bool in //TODO: this currently returns the node. should it return the tree root instead? - May
+	bt_init //create a new node
+	if //successful
+		let parent child in
+			parent child bt_setLeftChild
+			child parent bt_setParent
+		end 
+	else //unsuccessful
+		drop drop NULL false
+	end
+end
+
+proc bt_createRChild ptr int -- ptr bool in 
+	bt_init //create a new node
+	if //successful
+		let parent child in
+			parent child bt_setRightChild
+			child parent bt_setParent
+		end 
+	else //unsuccessful
+		drop drop NULL false
+	end
+end
+
+proc bt_insertNode ptr ptr -- ptr in 
+	//https://en.wikipedia.org/wiki/Binary_search_tree
+	let root newnode in 
+		root dup
+		NULL swap
+		while dup NULL ptr!= do
+			swap drop dup 
+			bt_getValue
+			newnode bt_reduceToValue swap < if
+				bt_reduceToLeftChild
+			else
+				bt_reduceToRightChild
+			end
+		end
+		dup NULL ptr= if //is y null?
+			//if so, then there is no tree and z is the start
+			drop val bt_init
+		else bt_getValue newnode bt_reduceToValue swap < if* //z is less than y.key
+			dup newnode //parent parent child 
+			bt_setLeftChild
+			newnode swap
+			bt_setParent
+			root
+		else
+			dup newnode //parent parent child 
+			bt_setRightChild
+			newnode swap
+			bt_setParent
+			root
+		end
+	end
+end 
+
+proc bt_insertVal ptr int -- ptr bool in 
+	//https://en.wikipedia.org/wiki/Binary_search_tree
+	let root val in 
+		root dup
+		NULL swap
+		while dup NULL ptr!= do
+			swap drop dup 
+			bt_getValue
+			val swap < if
+				bt_reduceToLeftChild
+			else
+				bt_reduceToRightChild
+			end
+		end
+		dup NULL ptr= if //is y null?
+			//if so, then there is no tree and z is the start
+			drop val bt_init
+		else bt_getValue val swap < if* //z is less than y.key
+			val bt_createLChild swap drop root swap 
+		else
+			val bt_createRChild swap drop root swap 
+		end
+	end
+end
+
+proc bt_isRoot ptr -- ptr bool in 
+	dup !64 0 =  
+end
+
+proc bt_isLeaf ptr -- ptr bool in 
+	//a leaf node has no children
+	dup 
+	8 + dup !64 //read left child
+	swap 16 + !64 //read right child
+	over = swap 0 = land //both nodes are equal to each other and 0
+end
+proc bt_deleteNode ptr ptr -- ptr in 
+	
+end
